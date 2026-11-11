@@ -146,3 +146,29 @@ export async function signOut() {
   await createClient().auth.signOut();
   redirect("/");
 }
+
+// ---------------------------------------------------------------- test eval (not stored)
+
+export async function testEval(input: { subject: string; body: string; recipient_email: string }) {
+  const { workspace } = await requireWorkspace();
+  if (!input.body.trim()) return { ok: false as const, error: "Paste an email body" };
+  const { loadEvalContext, scoreContent } = await import("@/lib/evaluate");
+  const { claudeJudge } = await import("@/lib/judge/claude");
+  const { routeStatus } = await import("@/lib/judge/score");
+  const db = createAdminClient();
+  const fake = {
+    id: "test",
+    workspace_id: workspace.id,
+    recipient_email: (input.recipient_email || "test@example.com").toLowerCase(),
+    subject: input.subject || null,
+    body: input.body,
+    fact_sheet_version: null,
+  } as unknown as import("@/lib/types").Message;
+  try {
+    const ctx = await loadEvalContext(db, fake);
+    const result = await scoreContent(claudeJudge, ctx, fake);
+    return { ok: true as const, result, route: routeStatus(result, workspace.eval_threshold), factSheetVersion: ctx.factSheet.version };
+  } catch (e) {
+    return { ok: false as const, error: (e as Error).message };
+  }
+}
