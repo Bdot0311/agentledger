@@ -30,6 +30,7 @@ export interface OutboundEmail {
   to: string;
   subject: string;
   body: string;
+  html?: string;
 }
 
 export function senderAddress(workspaceFrom: string | null | undefined): string {
@@ -48,7 +49,7 @@ export async function deliverEmail(email: OutboundEmail): Promise<{ id: string; 
     return { id: `dry-run-${Date.now()}`, dryRun: true };
   }
   const resend = new Resend(process.env.RESEND_API_KEY);
-  const { data, error } = await resend.emails.send({ from: email.from, to: email.to, subject: email.subject, text: email.body });
+  const { data, error } = await resend.emails.send({ from: email.from, to: email.to, subject: email.subject, text: email.body, ...(email.html ? { html: email.html } : {}) });
   if (error || !data) throw new SendRejectedError(`Resend error: ${error?.message ?? "unknown"}`, 502);
   return { id: data.id, dryRun: false };
 }
